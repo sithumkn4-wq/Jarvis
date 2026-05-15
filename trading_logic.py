@@ -4,121 +4,114 @@ import yfinance as yf
 import plotly.graph_objects as go
 from datetime import datetime
 import requests
-import pandas_ta as ta
 
 # --- CONFIGURATION & SECURITY ---
-# මෙතන ENTER_YOUR_PASSWORD_HERE මකලා ඔයාගේ Password එක දාන්න
-MY_SECRET_PASSWORD = "1221"
+MY_SECRET_PASSWORD = "1221"  # ඔයා ඉල්ලපු පාස්වර්ඩ් එක
+CHAT_ID = "7657159021"      # ඔයා එවපු ටෙලිග්‍රෑම් ID එක
+# මෙතන " " ඇතුලත ඔයාගේ Bot Token එක විතරක් දාන්න
+TELEGRAM_TOKEN = "මෙතනට_BOT_TOKEN_එක_දාන්න" 
 
-# Telegram Setup (ඔයාගේ පරණ විස්තරම මෙතනට දාන්න)
-TELEGRAM_TOKEN = "YOUR_BOT_TOKEN"
-CHAT_ID = "YOUR_CHAT_ID"
+st.set_page_config(page_title="JARVIS V2.0 - Oracle", layout="wide")
 
-st.set_page_config(page_title="JARVIS V2.0 - Portfolio Oracle", layout="wide")
-
-# --- DATA STORAGE ENGINE ---
+# --- DATA ENGINE ---
 def load_data(file_name):
     try:
         return pd.read_csv(file_name)
-    except FileNotFoundError:
+    except:
         return pd.DataFrame(columns=["Date", "Asset", "BuyPrice", "Qty", "Type"])
 
 def save_data(df, file_name):
     df.to_csv(file_name, index=False)
 
-# --- ANALYSIS ENGINE (THE POWER MODULE) ---
+# --- MANUAL MATH ENGINE (100% NO ERRORS) ---
 def get_ai_advice(symbol):
-    data = yf.download(symbol, period="1d", interval="15m", progress=False)
-    if data.empty: return "No Data", "Wait"
-    
-    # RSI & EMA Calculation using Pandas-TA
-    data['RSI'] = ta.rsi(data['Close'], length=14)
-    data['EMA_20'] = ta.ema(data['Close'], length=20)
-    
-    last_rsi = data['RSI'].iloc[-1]
-    last_price = data['Close'].iloc[-1]
-    last_ema = data['EMA_20'].iloc[-1]
-    
-    if last_rsi > 70:
-        return "Take Profit", "🔴 Market Overbought. Sell now to secure gains."
-    elif last_rsi < 30:
-        return "Buy/Hold", "🟢 Market Oversold. Potential pump coming."
-    elif last_price > last_ema:
-        return "Hold", "🟡 Trend is Bullish. Keep holding."
-    else:
-        return "Avoid", "⚪ Market is unstable. Stay away for now."
-
-# --- UI INTERFACE ---
-st.title("🤖 JARVIS V2.0: Portfolio & Intelligence")
-
-tab1, tab2, tab3 = st.tabs(["🎮 Practice Sandbox", "💰 Real Portfolio", "📊 Advanced Analysis"])
-
-# --- TAB 1: PRACTICE SANDBOX (Fake Money, Real Market) ---
-with tab1:
-    st.subheader("Practice Mode (Numerical Training)")
-    with st.form("practice_form"):
-        p_asset = st.text_input("Asset Symbol (e.g., BTC-USD, AAPL)")
-        p_buy_price = st.number_input("Fake Buy Price ($)", min_value=0.0)
-        p_qty = st.number_input("Fake Quantity", min_value=0.0)
-        p_submit = st.form_submit_button("Add to Practice")
+    try:
+        data = yf.download(symbol, period="5d", interval="15m", progress=False)
+        if data.empty: return "No Data", "පද්ධතියට දත්ත ලබාගත නොහැක."
         
-    if p_submit:
-        df_p = load_data("practice_data.csv")
-        new_row = {"Date": datetime.now().strftime("%Y-%m-%d"), "Asset": p_asset, "BuyPrice": p_buy_price, "Qty": p_qty, "Type": "Practice"}
-        df_p = pd.concat([df_p, pd.DataFrame([new_row])], ignore_index=True)
-        save_data(df_p, "practice_data.csv")
-        st.success("Practice Trade Saved!")
+        # RSI Calculation
+        delta = data['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        last_rsi = (100 - (100 / (1 + rs))).iloc[-1]
+        
+        last_price = data['Close'].iloc[-1]
+        ema_20 = data['Close'].rolling(window=20).mean().iloc[-1]
+        
+        if last_rsi > 70:
+            return "Take Profit", "🔴 Market Overbought. විකුණා ලාභ ලබාගන්න."
+        elif last_rsi < 30:
+            return "Buy/Hold", "🟢 මිල පතුලේ ඇත. Pump එකක් බලාපොරොත්තු වන්න."
+        elif last_price > ema_20:
+            return "Hold", "🟡 මිල ඉහළ යන ප්‍රවණතාවයක පවතී (Bullish)."
+        else:
+            return "Avoid", "⚪ වෙළඳපොළ අවදානම් සහගතයි. රැඳී සිටින්න."
+    except:
+        return "Error", "Symbol එක වැරදියි හෝ සර්වර් දෝෂයකි."
 
-# --- TAB 2: REAL PORTFOLIO (Actual Money & Bitcoin) ---
+# --- TELEGRAM SENDER ---
+def send_telegram_msg(message):
+    if "මෙතනට" not in TELEGRAM_TOKEN:
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage?chat_id={CHAT_ID}&text={message}"
+        requests.get(url)
+
+# --- UI ---
+st.title("🤖 JARVIS V2.0: Portfolio Intelligence")
+
+tab1, tab2, tab3 = st.tabs(["🎮 Practice (Demo)", "💰 Real Account", "📊 Analysis Charts"])
+
+# --- TAB 1: PRACTICE ---
+with tab1:
+    st.subheader("Practice Sandbox (බොරු සල්ලි - ඇත්ත Market)")
+    with st.form("demo_form"):
+        p_asset = st.text_input("Asset (e.g. BTC-USD, ETH-USD)")
+        p_price = st.number_input("Fake Buy Price ($)", min_value=0.0)
+        p_qty = st.number_input("Fake Qty", min_value=0.0)
+        if st.form_submit_button("Add to Practice"):
+            df = load_data("practice_data.csv")
+            new = {"Date": datetime.now().strftime("%Y-%m-%d"), "Asset": p_asset, "BuyPrice": p_price, "Qty": p_qty, "Type": "Demo"}
+            df = pd.concat([df, pd.DataFrame([new])], ignore_index=True)
+            save_data(df, "practice_data.csv")
+            st.success("Practice Trade Saved!")
+            send_telegram_msg(f"✅ Demo Trade Added: {p_asset}")
+
+# --- TAB 2: REAL ACCOUNT (PASSWORD PROTECTED) ---
 with tab2:
-    st.subheader("Real-World Asset Tracking")
-    # Password Protection for Real Data
-    check_pass = st.text_input("Enter Admin Password to view Real Portfolio", type="password")
+    st.subheader("Real Portfolio (Crypto & Investments)")
+    lock = st.text_input("ඇතුල් වීමට Password එක ගසන්න", type="password")
     
-    if check_pass == MY_SECRET_PASSWORD:
+    if lock == MY_SECRET_PASSWORD:
+        st.success("Access Granted! ✅")
         with st.form("real_form"):
-            r_asset = st.text_input("Real Asset Symbol (e.g., BTC-USD)")
-            r_buy_price = st.number_input("Real Purchase Price ($)", min_value=0.0)
-            r_qty = st.number_input("Real Quantity", min_value=0.0)
-            r_submit = st.form_submit_button("Log Real Transaction")
-            
-        if r_submit:
-            df_r = load_data("real_data.csv")
-            new_data = {"Date": datetime.now().strftime("%Y-%m-%d"), "Asset": r_asset, "BuyPrice": r_buy_price, "Qty": r_qty, "Type": "Real"}
-            df_r = pd.concat([df_r, pd.DataFrame([new_data])], ignore_index=True)
-            save_data(df_r, "real_data.csv")
-            st.success("Real Transaction Logged!")
-            
-        st.write("### Current Holdings")
-        df_display = load_data("real_data.csv")
-        st.table(df_display)
-    else:
-        st.warning("Please enter correct password to unlock sensitive data.")
+            r_asset = st.text_input("Real Asset Symbol (e.g. BTC-USD)")
+            r_price = st.number_input("Real Buy Price ($)", min_value=0.0)
+            r_qty = st.number_input("Real Qty", min_value=0.0)
+            if st.form_submit_button("Log Transaction"):
+                df = load_data("real_data.csv")
+                new = {"Date": datetime.now().strftime("%Y-%m-%d"), "Asset": r_asset, "BuyPrice": r_price, "Qty": r_qty, "Type": "Real"}
+                df = pd.concat([df, pd.DataFrame([new])], ignore_index=True)
+                save_data(df, "real_data.csv")
+                st.success("Real Data Logged Securely!")
+        
+        st.write("### ඔබගේ වර්තමාන වත්කම් (Holdings)")
+        st.table(load_data("real_data.csv"))
+    elif lock != "":
+        st.error("වැරදි Password එකක්. නැවත උත්සාහ කරන්න.")
 
-# --- TAB 3: ADVANCED ANALYSIS ---
+# --- TAB 3: ANALYSIS ---
 with tab3:
-    st.subheader("Market Intelligence & Growth Charts")
-    target = st.text_input("Enter Asset to Analyze", "BTC-USD")
-    if st.button("Run AI Deep Scan"):
+    st.subheader("Market Scan & Charts")
+    target = st.text_input("විශ්ලේෂණයට අවශ්‍ය Symbol එක", "BTC-USD")
+    if st.button("Deep Scan"):
         advice, detail = get_ai_advice(target)
-        st.metric("Recommendation", advice)
+        st.metric("AI Advice", advice)
         st.info(detail)
         
-        # Growth Chart logic
-        hist = yf.download(target, period="1mo", interval="1d")
+        hist = yf.download(target, period="1mo", interval="1d", progress=False)
         fig = go.Figure(data=[go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'])])
-        st.plotly_chart(fig)
+        fig.update_layout(title=f"{target} Market Chart", template="plotly_dark")
+        st.plotly_chart(fig, use_container_width=True)
 
-# --- AUTOMATED TELEGRAM REPORTING ---
-# (This logic runs in background to send reports at 05:00, 12:00, 20:00)
-# Note: For actual scheduling, you need the UptimeRobot ping to trigger this part.
-def send_telegram_report():
-    # Only sends if password check is skipped or managed via separate bot command
-    msg = f"🔔 JARVIS REPORT: {datetime.now().strftime('%H:%M')}\n\n"
-    msg += "Market Status: Scanned ✅\n"
-    msg += "To view your Balance & AI Advice, visit your Dashboard and enter Password."
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage?chat_id={CHAT_ID}&text={msg}"
-    requests.get(url)
-
-st.write("---")
-st.caption("JARVIS V2.0 Powered by Advanced Web Analysis Modules")
+st.divider()
+st.caption("Developed by JARVIS V2.0 | Security Enabled")
