@@ -5,113 +5,114 @@ import plotly.graph_objects as go
 from datetime import datetime
 import requests
 
-# --- CONFIGURATION & SECURITY ---
-MY_SECRET_PASSWORD = "1221"  # ඔයා ඉල්ලපු පාස්වර්ඩ් එක
-CHAT_ID = "7657159021"      # ඔයා එවපු ටෙලිග්‍රෑම් ID එක
-# මෙතන " " ඇතුලත ඔයාගේ Bot Token එක විතරක් දාන්න
-TELEGRAM_TOKEN = "මෙතනට_BOT_TOKEN_එක_දාන්න" 
+# --- CONFIGURATION ---
+MY_SECRET_PASSWORD = "1221"
+CHAT_ID = "7657159021"
+TELEGRAM_TOKEN = "මෙතනට_ඔයාගේ_BOT_TOKEN_එක_දාන්න"
 
-st.set_page_config(page_title="JARVIS V2.0 - Oracle", layout="wide")
+st.set_page_config(page_title="Trading Oracle - Final V2.3", layout="wide")
 
-# --- DATA ENGINE ---
-def load_data(file_name):
-    try:
-        return pd.read_csv(file_name)
-    except:
-        return pd.DataFrame(columns=["Date", "Asset", "BuyPrice", "Qty", "Type"])
+# --- CSS FOR STYLING (පරණ ලස්සන ගන්න) ---
+st.markdown("""
+    <style>
+    .main { background-color: #0e1117; }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #ff4b4b; color: white; }
+    .stTextInput>div>div>input { color: #ff4b4b; }
+    </style>
+    """, unsafe_allow_index=True)
 
-def save_data(df, file_name):
-    df.to_csv(file_name, index=False)
+# --- DATA FUNCTIONS ---
+def load_data(file):
+    try: return pd.read_csv(file)
+    except: return pd.DataFrame(columns=["Date", "Asset", "BuyPrice", "Qty", "Allocation %", "Currency", "Type"])
 
-# --- MANUAL MATH ENGINE (100% NO ERRORS) ---
-def get_ai_advice(symbol):
-    try:
-        data = yf.download(symbol, period="5d", interval="15m", progress=False)
-        if data.empty: return "No Data", "පද්ධතියට දත්ත ලබාගත නොහැක."
-        
-        # RSI Calculation
-        delta = data['Close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rs = gain / loss
-        last_rsi = (100 - (100 / (1 + rs))).iloc[-1]
-        
-        last_price = data['Close'].iloc[-1]
-        ema_20 = data['Close'].rolling(window=20).mean().iloc[-1]
-        
-        if last_rsi > 70:
-            return "Take Profit", "🔴 Market Overbought. විකුණා ලාභ ලබාගන්න."
-        elif last_rsi < 30:
-            return "Buy/Hold", "🟢 මිල පතුලේ ඇත. Pump එකක් බලාපොරොත්තු වන්න."
-        elif last_price > ema_20:
-            return "Hold", "🟡 මිල ඉහළ යන ප්‍රවණතාවයක පවතී (Bullish)."
-        else:
-            return "Avoid", "⚪ වෙළඳපොළ අවදානම් සහගතයි. රැඳී සිටින්න."
-    except:
-        return "Error", "Symbol එක වැරදියි හෝ සර්වර් දෝෂයකි."
+def save_data(df, file):
+    df.to_csv(file, index=False)
 
-# --- TELEGRAM SENDER ---
-def send_telegram_msg(message):
-    if "මෙතනට" not in TELEGRAM_TOKEN:
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage?chat_id={CHAT_ID}&text={message}"
-        requests.get(url)
+# --- UI START ---
+st.title("🔮 Trading Oracle - Final v2.3")
 
-# --- UI ---
-st.title("🤖 JARVIS V2.0: Portfolio Intelligence")
+tab1, tab2, tab3 = st.tabs(["📋 Portfolio Planner", "🔐 Real Account", "📈 Intelligence"])
 
-tab1, tab2, tab3 = st.tabs(["🎮 Practice (Demo)", "💰 Real Account", "📊 Analysis Charts"])
-
-# --- TAB 1: PRACTICE ---
+# --- TAB 1: PORTFOLIO PLANNER (The Old Look) ---
 with tab1:
-    st.subheader("Practice Sandbox (බොරු සල්ලි - ඇත්ත Market)")
-    with st.form("demo_form"):
-        p_asset = st.text_input("Asset (e.g. BTC-USD, ETH-USD)")
-        p_price = st.number_input("Fake Buy Price ($)", min_value=0.0)
-        p_qty = st.number_input("Fake Qty", min_value=0.0)
-        if st.form_submit_button("Add to Practice"):
-            df = load_data("practice_data.csv")
-            new = {"Date": datetime.now().strftime("%Y-%m-%d"), "Asset": p_asset, "BuyPrice": p_price, "Qty": p_qty, "Type": "Demo"}
-            df = pd.concat([df, pd.DataFrame([new])], ignore_index=True)
-            save_data(df, "practice_data.csv")
-            st.success("Practice Trade Saved!")
-            send_telegram_msg(f"✅ Demo Trade Added: {p_asset}")
-
-# --- TAB 2: REAL ACCOUNT (PASSWORD PROTECTED) ---
-with tab2:
-    st.subheader("Real Portfolio (Crypto & Investments)")
-    lock = st.text_input("ඇතුල් වීමට Password එක ගසන්න", type="password")
+    st.header("➕ Add New Asset (Practice)")
     
-    if lock == MY_SECRET_PASSWORD:
-        st.success("Access Granted! ✅")
-        with st.form("real_form"):
-            r_asset = st.text_input("Real Asset Symbol (e.g. BTC-USD)")
-            r_price = st.number_input("Real Buy Price ($)", min_value=0.0)
+    col1, col2 = st.columns(2)
+    with col1:
+        p_asset = st.text_input("Asset Symbol (eg: TSLA, AAPL, BTC-USD)")
+        p_price = st.number_input("Buy Price", min_value=0.0, value=298.21)
+    with col2:
+        p_qty = st.number_input("Quantity", min_value=0.0, value=2.0)
+        p_curr = st.selectbox("Currency", ["USD ($)", "LKR (Rs)"])
+    
+    p_alloc = st.slider("මෙයට යොදවන මුදල (%)", 0, 100, 92)
+    
+    if st.button("💾 Save to Memory"):
+        df = load_data("practice.csv")
+        new_row = {"Date": datetime.now().strftime("%Y-%m-%d"), "Asset": p_asset, "BuyPrice": p_price, "Qty": p_qty, "Allocation %": p_alloc, "Currency": p_curr, "Type": "Demo"}
+        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+        save_data(df, "practice.csv")
+        st.success("Saved to Memory! 🚀")
+
+    st.subheader("📋 Saved Memory")
+    st.table(load_data("practice.csv"))
+    
+    if st.button("🗑️ Full System Reset"):
+        save_data(pd.DataFrame(columns=["Date", "Asset", "BuyPrice", "Qty", "Allocation %", "Currency", "Type"]), "practice.csv")
+        st.experimental_rerun()
+
+# --- TAB 2: REAL ACCOUNT (Secure) ---
+with tab2:
+    st.header("🔐 Secure Portfolio")
+    pass_input = st.text_input("Enter Admin Password", type="password")
+    
+    if pass_input == MY_SECRET_PASSWORD:
+        st.info("Verified. Accessing Real Data...")
+        with st.expander("Add Real Transaction"):
+            r_asset = st.text_input("Real Symbol (eg: BTC-USD)")
+            r_price = st.number_input("Real Price", min_value=0.0)
             r_qty = st.number_input("Real Qty", min_value=0.0)
-            if st.form_submit_button("Log Transaction"):
-                df = load_data("real_data.csv")
+            if st.button("✅ Log Real Trade"):
+                df = load_data("real.csv")
                 new = {"Date": datetime.now().strftime("%Y-%m-%d"), "Asset": r_asset, "BuyPrice": r_price, "Qty": r_qty, "Type": "Real"}
                 df = pd.concat([df, pd.DataFrame([new])], ignore_index=True)
-                save_data(df, "real_data.csv")
-                st.success("Real Data Logged Securely!")
+                save_data(df, "real.csv")
+                st.success("Logged!")
         
-        st.write("### ඔබගේ වර්තමාන වත්කම් (Holdings)")
-        st.table(load_data("real_data.csv"))
-    elif lock != "":
-        st.error("වැරදි Password එකක්. නැවත උත්සාහ කරන්න.")
+        st.write("### Current Holdings")
+        st.dataframe(load_data("real.csv"), use_container_width=True)
+    else:
+        st.warning("Locked. Enter Password to View.")
 
-# --- TAB 3: ANALYSIS ---
+# --- TAB 3: INTELLIGENCE ---
 with tab3:
-    st.subheader("Market Scan & Charts")
-    target = st.text_input("විශ්ලේෂණයට අවශ්‍ය Symbol එක", "BTC-USD")
-    if st.button("Deep Scan"):
-        advice, detail = get_ai_advice(target)
-        st.metric("AI Advice", advice)
-        st.info(detail)
-        
-        hist = yf.download(target, period="1mo", interval="1d", progress=False)
-        fig = go.Figure(data=[go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'])])
-        fig.update_layout(title=f"{target} Market Chart", template="plotly_dark")
-        st.plotly_chart(fig, use_container_width=True)
+    st.header("🧠 AI Intelligence & Charts")
+    target = st.text_input("Analyze Symbol", "BTC-USD")
+    
+    if st.button("🔍 Deep Scan"):
+        try:
+            data = yf.download(target, period="1mo", interval="1h", progress=False)
+            if not data.empty:
+                # RSI Calculation
+                delta = data['Close'].diff()
+                gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+                loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                rsi = 100 - (100 / (1 + (gain/loss)))
+                last_rsi = rsi.iloc[-1]
+                
+                st.metric("Current RSI", f"{last_rsi:.2f}")
+                if last_rsi > 70: st.error("Advice: Take Profit (Overbought)")
+                elif last_rsi < 30: st.success("Advice: Buy/Hold (Oversold)")
+                else: st.info("Advice: Neutral / Hold")
 
-st.divider()
-st.caption("Developed by JARVIS V2.0 | Security Enabled")
+                fig = go.Figure(data=[go.Candlestick(x=data.index, open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'])])
+                fig.update_layout(template="plotly_dark", title=f"{target} Live Chart")
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.error("No Data Found.")
+        except:
+            st.error("Error fetching data.")
+
+st.markdown("---")
+st.caption("Developed by JARVIS | Professional Trading Oracle")
