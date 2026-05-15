@@ -1,5 +1,7 @@
 streamlit
-yfinance
 pandas
+pandas_ta
+yfinance
 plotly
+python-telegram-bot
 requests
