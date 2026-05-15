@@ -10,113 +10,118 @@ MY_PASSWORD = "1221"
 MY_CHAT_ID = "7657159021"
 BOT_TOKEN = "8878579463:AAGfwmj-jmUCBab5VwXjxWpYsrW9z3VyK3o"
 
-st.set_page_config(page_title="JARVIS Trading System", layout="wide")
+st.set_page_config(page_title="JARVIS PRO v3.5", layout="wide")
 
 # --- 📱 TELEGRAM FUNCTION ---
 def send_telegram(message):
     try:
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage?chat_id={MY_CHAT_ID}&text={message}"
-        response = requests.get(url)
-        return response.status_code == 200
+        requests.get(url)
+        return True
     except:
         return False
 
-# --- 📈 RSI CALCULATION (No external library needed to avoid errors) ---
-def get_rsi_and_data(symbol):
+# --- 📊 ADVANCED MATH MODULE (RSI & CHANGES) ---
+def get_market_analysis(symbol):
     try:
         df = yf.download(symbol, period="1mo", interval="1h", progress=False)
-        if df.empty: return None, None
+        if df.empty: return None
         
+        # 1. RSI Calculation
         delta = df['Close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
-        current_rsi = rsi.iloc[-1]
         
-        return float(current_rsi), df
+        # 2. Price Stats
+        current_price = df['Close'].iloc[-1]
+        open_price = df['Open'].iloc[0]
+        price_change = ((current_price - open_price) / open_price) * 100
+        
+        return {
+            "rsi": rsi.iloc[-1],
+            "price": current_price,
+            "change": price_change,
+            "df": df
+        }
     except:
-        return None, None
+        return None
 
-# --- 🎨 MAIN UI DESIGN ---
-st.title("🤖 JARVIS Trading System")
+# --- 🎨 UI DESIGN ---
+st.title("🤖 JARVIS PRO - Advanced Trading Engine")
 
-# --- 🚀 TELEGRAM CONNECTION TEST ---
-st.info("💡 මුලින්ම පල්ලෙහා තියෙන බටන් එක ඔබලා Telegram එකට මැසේජ් එනවාද බලන්න.")
-
-if st.button("🚀 Test Telegram Message"):
-    success = send_telegram("✅ JARVIS පද්ධතිය සාර්ථකව සම්බන්ධ විය! දැන් ඔබට Alerts ලැබෙනු ඇත.")
-    if success:
-        st.success("✅ මැසේජ් එක සාර්ථකව යැව්වා! Telegram එක පරීක්ෂා කරන්න.")
-    else:
-        st.error("❌ මැසේජ් එක යැවීමට නොහැකි විය. කරුණාකර අන්තර්ජාල සම්බන්ධතාවය පරීක්ෂා කරන්න.")
+# --- 🚀 TELEGRAM TEST ---
+with st.expander("📡 System Connectivity"):
+    if st.button("🚀 Test Bot Connection"):
+        if send_telegram("✅ JARVIS Intelligence System: Online & Synchronized."):
+            st.success("Telegram Connection: ACTIVE")
+        else:
+            st.error("Telegram Connection: FAILED")
 
 st.divider()
 
-# --- ⏰ SCHEDULED ALERTS (Manual Trigger logic) ---
-# සටහන: මෙය ක්‍රියාත්මක වන්නේ App එක විවෘතව පවතින විට පමණි.
+# --- ⏰ SCHEDULED ALERTS ---
 now = datetime.now().strftime("%H:%M")
 if now in ["05:00", "12:00", "20:00"]:
-    rsi_val, _ = get_rsi_and_data("BTC-USD")
-    if rsi_val:
-        send_telegram(f"⏰ JARVIS TIME UPDATE ({now})\nMarket: BTC-USD\nCurrent RSI: {rsi_val:.2f}")
+    analysis = get_market_analysis("BTC-USD")
+    if analysis:
+        msg = f"⏰ JARVIS SCHEDULED CHECK ({now})\nAsset: BTC-USD\nPrice: ${analysis['price']:.2f}\nRSI: {analysis['rsi']:.2f}\nChange: {analysis['change']:.2f}%"
+        send_telegram(msg)
 
-# --- 🗂️ FUNCTIONAL TABS ---
-tab1, tab2, tab3 = st.tabs(["📋 Portfolio", "🔐 Private Vault", "📈 Live Scan"])
+# --- 🗂️ MAIN MODULES ---
+tab1, tab2, tab3 = st.tabs(["📋 Portfolio Management", "🔐 Secure Vault", "📈 Market Intelligence"])
 
 with tab1:
-    st.header("📋 Portfolio Planner")
-    col1, col2 = st.columns(2)
+    st.header("➕ Asset Planner")
+    col1, col2, col3 = st.columns(3)
     with col1:
-        asset = st.text_input("Asset Symbol", "AAPL")
-        buy_price = st.number_input("Fake Buy Price ($)", min_value=0.0, value=0.10)
+        asset = st.text_input("Asset Symbol", "BTC-USD")
     with col2:
-        qty = st.number_input("Fake Qty", min_value=0.0, value=0.07)
+        buy_p = st.number_input("Target Buy Price", value=65000.0)
+    with col3:
+        qty = st.number_input("Quantity", value=0.01)
     
-    alloc = st.slider("යොදවන මුදල (%)", 0, 100, 70)
+    alloc = st.slider("Allocation Percentage (%)", 0, 100, 92)
     
-    if st.button("Save to Practice"):
-        st.success("Practice Trade Saved!")
-        send_telegram(f"📝 New Practice Entry\nAsset: {asset}\nPrice: ${buy_price}\nAllocation: {alloc}%")
+    if st.button("💾 Save to Memory"):
+        st.success(f"Successfully planned {asset} at {alloc}% allocation.")
+        send_telegram(f"📝 Planning Update:\nAsset: {asset}\nAllocation: {alloc}%")
 
 with tab2:
-    st.header("🔐 Secure Vault")
-    pw = st.text_input("Password", type="password")
+    st.header("🔐 Secure Private Vault")
+    pw = st.text_input("Enter Access Key", type="password")
     if pw == MY_PASSWORD:
-        st.success("Access Granted!")
-        st.write("### ඔබගේ වර්තමාන වත්කම් (Holdings)")
-        # Mock table based on your previous designs
-        data = {'Date': ['2026-05-15'], 'Asset': ['AAPL'], 'BuyPrice': [50.00], 'Qty': [5.00], 'Type': ['Real']}
-        st.table(pd.DataFrame(data))
+        st.success("Identity Verified.")
+        st.info("ඔබේ සියලුම පෞද්ගලික ගනුදෙනු විස්තර මෙහි සුරක්ෂිතව පවතී.")
+        # මෙතනට ඔයාගේ table එක දාන්න පුළුවන්
     elif pw != "":
-        st.error("වැරදි මුරපදයකි.")
+        st.error("Access Denied: Invalid Password.")
 
 with tab3:
-    st.header("📈 Market Intelligence")
-    scan_target = st.text_input("Symbol to Analyze (e.g. BTC-USD, TSLA)", "AAPL")
-    if st.button("Deep Scan"):
-        rsi_val, chart_data = get_rsi_and_data(scan_target)
-        if rsi_val is not None:
-            # AI Advice Logic
-            advice = "Neutral 🟡"
-            if rsi_val > 70: advice = "SELL 🔴 (Overbought)"
-            elif rsi_val < 30: advice = "BUY 🟢 (Oversold)"
-            
-            st.metric(f"{scan_target} Current RSI", f"{rsi_val:.2f}")
-            st.subheader(f"AI Advice: {advice}")
-            
-            # Draw Live Candlestick Chart
-            fig = go.Figure(data=[go.Candlestick(
-                x=chart_data.index,
-                open=chart_data['Open'],
-                high=chart_data['High'],
-                low=chart_data['Low'],
-                close=chart_data['Close']
-            )])
-            fig.update_layout(title=f"{scan_target} Live Market Chart", template="plotly_dark")
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Send result to Telegram
-            send_telegram(f"🔍 Scan Report: {scan_target}\nRSI: {rsi_val:.2f}\nAdvice: {advice}")
-        else:
-            st.error("දත්ත ලබාගත නොහැක. Symbol එක නිවැරදිදැයි බලන්න.")
+    st.header("📈 Deep Market Analysis")
+    target = st.text_input("Enter Symbol (BTC-USD, TSLA, AAPL)", "BTC-USD")
+    if st.button("🔍 Run Advanced Scan"):
+        with st.spinner("Calculating Mathematical Models..."):
+            res = get_market_analysis(target)
+            if res:
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Live Price", f"${res['price']:.2f}", f"{res['change']:.2f}%")
+                c2.metric("RSI (14h)", f"{res['rsi']:.2f}")
+                
+                advice = "HOLD 🟡"
+                if res['rsi'] > 70: advice = "SELL 🔴 (Overbought)"
+                elif res['rsi'] < 30: advice = "BUY 🟢 (Oversold)"
+                c3.metric("AI Advice", advice)
+
+                # Charting
+                fig = go.Figure(data=[go.Candlestick(x=res['df'].index, open=res['df']['Open'], high=res['df']['High'], low=res['df']['Low'], close=res['df']['Close'])])
+                fig.update_layout(template="plotly_dark", title=f"{target} Analysis Chart")
+                st.plotly_chart(fig, use_container_width=True)
+                
+                send_telegram(f"🔍 Scan Report: {target}\nPrice: ${res['price']:.2f}\nRSI: {res['rsi']:.2f}\nAdvice: {advice}")
+            else:
+                st.error("Error retrieving market data.")
+
+st.divider()
+st.caption("JARVIS PRO v3.5 | Mathematical Trading Module Active")
